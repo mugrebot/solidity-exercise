@@ -1,0 +1,151 @@
+pragma solidity  ^0.8.0; 
+
+import "@openzeppelin/contracts/access/Ownable.sol"; 
+import "@openzeppelin/contracts/math/SafeMath.sol";
+
+contract DND is SafeMath  {
+    address public owner;
+    bool public claimed;
+    uint public playerID;
+    uint public bossID;
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Ownable: caller is not the owner");
+        _;
+    } 
+
+    modifier oneChar () {
+
+        require (msg.sender.playerID <=1 , "only 1 character per user!");
+        _;
+    } 
+
+    modifier gainedXP () {
+        require (characters[playerID].xp>0, "This character hasn't gained any xp");
+        _;
+    } 
+
+    modifier notSelf () {
+        require (msg.sender != msg.sender, "You cannot perform this action on yourself");
+        _;
+    } 
+
+
+
+    modifier bossDead () {
+        require (bosses[0].hp<=0 , "The boss is not dead");
+        _;
+    } 
+
+    modifier notDead() {
+        require (characters[playerID].hp2>0, "cannot perform while dead, ask for a heal!");
+        _;
+    }
+
+    modifier hasClaimed() {
+        require(!characters[playerID].claimed, "you've already claimed!");
+
+        characters[playerID].claimed = false;
+        _;
+        
+    }
+
+
+    struct Boss {
+        uint hp;
+        uint dmg;
+        uint reward;
+    } 
+
+    Boss[] public bosses; //only 1 boss at a time if, bosses[0].hp >> 0 a new boss may not be created
+
+    //if bosses[0].hp <= 0 - we must extend the bosses reward to the players in the form of xp
+
+    struct User {
+        uint hp2;
+        uint dmg2;
+        uint xp;
+        bool claimed;
+    }
+
+    User[] public characters;
+     constructor() {
+        // Set the transaction sender as the owner of the contract.
+        owner = msg.sender;
+    }
+
+function createBoss (uint _bossHP, uint _bossDMG, uint _bossREWARD) public  {
+    require(boss[0].hp<=0, "boss isnt dead, kill the boss before making another");
+    uint hp=_bossHP;
+    uint dmg=_bossDMG;
+    uint reward=_bossREWARD;
+    bosses.push(
+        Boss(            
+            hp,
+            dmg,
+            reward
+        ));
+}
+    
+
+    
+} 
+
+function createCharacter () public oneChar returns(uint, uint, uint, uint, bool)  {
+    playerID++;
+    uint hp2=100;
+    uint dmg2=10;
+    uint xp=0;
+    claimed=false;
+    characters.push(
+            User(
+                hp2,
+                dmg2,
+                xp,
+                claimed
+            )
+            );
+            return (playerID, characters[playerID].hp2, characters[playerID].dmg2, characters[playerID].xp, characters[playerID].claimed);
+//characters start with static values for hp/dmg/exp
+} 
+
+function checkStats() public view returns(uint, uint, uint,bool) {
+    return (characters[playerID].hp2, characters[playerID].dmg2, characters[playerID].xp,characters[playerID].claimed);
+}
+
+function Attack() public  notDead returns (uint, uint) {
+
+    bosses[bossID].hp = bosses[bossID].hp - characters[playerID].dmg2;    
+    characters[playerID].hp2 = characters[playerID].hp2 - bosses[bossID].dmg; 
+    
+    if (bosses[bossID].hp<0) {
+        
+        
+        bosses[bossID].hp=0;
+        return (bosses[bossID].hp, characters[playerID].hp2);
+
+    } else {
+        return (bosses[bossID].hp, characters[bossID].hp2);
+    }
+
+
+    return (bosses[bossID].hp, characters[playerID].hp2);
+} 
+
+function Heal () public  gainedXP notDead returns (uint) {
+    characters[playerID].hp2 = characters[playerID].hp2+5;
+    return characters[playerID].hp2;
+///maybe an emit event? also might need to be able to select # in array
+}
+
+
+
+function ClaimReward () public hasClaimed bossDead notDead  returns (uint, bool) {
+    characters[playerID].xp = characters[playerID].xp + bosses[bossID].reward;
+    characters[playerID].claimed=!characters[playerID].claimed;   ////always returns true?!?!?!?!? wtf
+    return (characters[playerID].xp,  characters[playerID].claimed);
+} 
+
+}
+
+ 
